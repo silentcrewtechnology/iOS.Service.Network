@@ -1,11 +1,11 @@
 import Alamofire
 import Foundation
 
-typealias SuccessHandler<T> = ((T) -> Void)
-typealias ErrorHandler = ((Error) -> Void)
-typealias ProgressHandler = ((Progress) -> Void)
+public typealias SuccessHandler<T> = ((T) -> Void)
+public typealias ErrorHandler = ((Error) -> Void)
+public typealias ProgressHandler = ((Progress) -> Void)
 
-protocol NetworkServiceProtocol {
+public protocol NetworkServiceProtocol {
     func request<T: Decodable>(
         endpoint: String,
         method: HTTPMethod,
@@ -18,7 +18,7 @@ protocol NetworkServiceProtocol {
     ) -> DataRequest
 }
 
-class NetworkService: NetworkServiceProtocol {
+public class NetworkService: NetworkServiceProtocol {
     
     private let session: Session
     private let config: NetworkConfigurable
@@ -44,7 +44,7 @@ class NetworkService: NetworkServiceProtocol {
     }
     
     @discardableResult
-    func request<T: Decodable>(
+    public func request<T: Decodable>(
         endpoint: String,
         method: HTTPMethod = .get,
         parameters: Parameters? = nil,
