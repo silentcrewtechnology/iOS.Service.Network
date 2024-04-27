@@ -25,7 +25,7 @@ public class NetworkService: NetworkServiceProtocol {
     private let logger: LoggerProtocol.Type
     private let errorHandler: ErrorHandling.Type
     
-    init(config: NetworkConfigurable = NetworkConfig.shared,
+    public init(config: NetworkConfigurable = NetworkConfig.shared,
          logger: LoggerProtocol.Type = Logger.self,
          errorHandler: ErrorHandling.Type = ErrorService.self) {
         self.config = config
