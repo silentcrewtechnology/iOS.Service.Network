@@ -25,9 +25,12 @@ public class NetworkService: NetworkServiceProtocol {
     private let logger: LoggerProtocol.Type
     private let errorHandler: ErrorHandling.Type
     
-    public init(config: NetworkConfigurable = NetworkConfig.shared,
-         logger: LoggerProtocol.Type = Logger.self,
-         errorHandler: ErrorHandling.Type = ErrorService.self) {
+    public init(
+        config: NetworkConfigurable = NetworkConfig.shared,
+        logger: LoggerProtocol.Type = Logger.self,
+        errorHandler: ErrorHandling.Type = ErrorService.self,
+        session: Session? = nil
+    ) {
         self.config = config
         self.logger = logger
         self.errorHandler = errorHandler
@@ -40,7 +43,7 @@ public class NetworkService: NetworkServiceProtocol {
         let serverTrustManager = config.createTrustManager()
         
         // Инициализация сессии с управлением доверием
-        session = Session(configuration: configuration, serverTrustManager: serverTrustManager)
+        self.session = session ?? Session(configuration: configuration, serverTrustManager: serverTrustManager)
     }
     
     @discardableResult
