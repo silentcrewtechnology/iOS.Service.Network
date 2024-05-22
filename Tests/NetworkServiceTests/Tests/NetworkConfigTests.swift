@@ -21,10 +21,12 @@ class NetworkConfigTests: XCTestCase {
         XCTAssertNotNil(trustManager)
     }
     
-    func testAddAndRemoveHeaders() {
+    func testAddHeaders() {
         config.addDefaultHeader(field: "Authorization", value: "Bearer token")
         XCTAssertEqual(config.defaultHeaders["Authorization"], "Bearer token")
-        
+    }
+    
+    func testRemoveHeaders() {
         config.removeDefaultHeader(field: "Authorization")
         XCTAssertNil(config.defaultHeaders["Authorization"])
     }
