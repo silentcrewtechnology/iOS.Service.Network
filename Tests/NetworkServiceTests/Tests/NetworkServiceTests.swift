@@ -3,7 +3,7 @@ import Alamofire
 @testable import NetworkService
 
 class NetworkServiceTests: XCTestCase {
-    
+    // Given
     var networkService: NetworkService!
     var mockConfig: NetworkConfigurable!
     var mockLogger: LoggerProtocol.Type!
@@ -33,6 +33,7 @@ class NetworkServiceTests: XCTestCase {
     }
 
     func testRequestSuccess() {
+        // When
         let expectation = self.expectation(description: "Successful request")
         
         MockURLProtocol.requestHandler = { request in
@@ -41,6 +42,7 @@ class NetworkServiceTests: XCTestCase {
             return (response, data)
         }
         
+        // Then
         networkService.request(
             endpoint: "testEndpoint",
             method: .get,
@@ -60,6 +62,7 @@ class NetworkServiceTests: XCTestCase {
     }
     
     func testRequestFailure() {
+        // When
         let expectation = self.expectation(description: "Failed request")
         
         MockURLProtocol.requestHandler = { request in
@@ -68,6 +71,7 @@ class NetworkServiceTests: XCTestCase {
             return (response, data)
         }
         
+        // Then
         networkService.request(
             endpoint: "testEndpoint",
             method: .get,
