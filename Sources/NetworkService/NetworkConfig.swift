@@ -14,7 +14,7 @@ public protocol NetworkConfigurable {
 }
 
 public class NetworkConfig: NetworkConfigurable {
-    static let shared = NetworkConfig()
+    public static let shared = NetworkConfig()
     
     // MARK: Базовый URL
     public var baseURL: URL {
