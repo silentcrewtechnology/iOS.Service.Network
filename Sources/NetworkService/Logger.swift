@@ -1,13 +1,13 @@
 import Foundation
 import Alamofire
 
-protocol LoggerProtocol {
+public protocol LoggerProtocol {
     static func log(request: DataRequest, dataResponse: DataResponse<Data, AFError>)
     static func logDecoded<T: Decodable>(_ model: T)
 }
 
-class Logger: LoggerProtocol {
-    static func log(request: DataRequest, dataResponse: DataResponse<Data, AFError>) {
+public class Logger: LoggerProtocol {
+    public static func log(request: DataRequest, dataResponse: DataResponse<Data, AFError>) {
         print("\n--- Request URL: \(request.request?.url?.absoluteString ?? "Unknown URL") ---")
         print("Method: \(request.request?.httpMethod ?? "Unknown Method")")
         print("Headers: \(request.request?.allHTTPHeaderFields ?? [:])")
@@ -23,7 +23,7 @@ class Logger: LoggerProtocol {
         }
     }
     
-    static func logDecoded<T: Decodable>(_ model: T) {
+    public static func logDecoded<T: Decodable>(_ model: T) {
         print("\nDecoded Model: \(model)")
     }
 }

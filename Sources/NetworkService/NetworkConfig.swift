@@ -1,7 +1,7 @@
 import Foundation
 import Alamofire
 
-protocol NetworkConfigurable {
+public protocol NetworkConfigurable {
     var baseURL: URL { get }
     var timeoutInterval: TimeInterval { get }
     var errorMessages: [Int: String] { get }
@@ -13,11 +13,11 @@ protocol NetworkConfigurable {
     func removeDefaultHeader(field: String)
 }
 
-class NetworkConfig: NetworkConfigurable {
+public class NetworkConfig: NetworkConfigurable {
     static let shared = NetworkConfig()
     
     // MARK: Базовый URL
-    var baseURL: URL {
+    public var baseURL: URL {
 #if DEBUG
         return URL(string: "https://dev.example.com")!
 #elseif RELEASE
@@ -26,7 +26,7 @@ class NetworkConfig: NetworkConfigurable {
     }
     
     // MARK: Управление доверием
-    func createTrustManager() -> ServerTrustManager {
+    public func createTrustManager() -> ServerTrustManager {
 #if RELEASE
         return ServerTrustManager(evaluators: ["bankok.akbars.ru": PublicKeysTrustEvaluator()])
 #else
@@ -35,20 +35,20 @@ class NetworkConfig: NetworkConfigurable {
     }
     
     // MARK: Сколько секунд ждем ответа
-    let timeoutInterval: TimeInterval = 30
+    public let timeoutInterval: TimeInterval = 30
     
     // MARK: Словарь ошибок
-    let errorMessages: [Int: String] = [
+    public let errorMessages: [Int: String] = [
         400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found"
     ]
     
-    let unknownError = "Unknown Error"
+    public let unknownError = "Unknown Error"
     
     // MARK: Предопределённые Headers
-    var defaultHeaders: HTTPHeaders = [
+    public var defaultHeaders: HTTPHeaders = [
         "Accept": "application/json",
         "Content-Type": "application/json",
         "X-App-Platform": "iOS",
@@ -59,11 +59,11 @@ class NetworkConfig: NetworkConfigurable {
     // "X-Timezone" Прокидываем снаружи
     
     // MARK: Методы для управления заголовками
-    func addDefaultHeader(field: String, value: String) {
+    public func addDefaultHeader(field: String, value: String) {
         defaultHeaders.update(name: field, value: value)
     }
     
-    func removeDefaultHeader(field: String) {
+    public func removeDefaultHeader(field: String) {
         defaultHeaders.remove(name: field)
     }
 
