@@ -5,12 +5,33 @@ typealias SuccessHandler<T> = ((T) -> Void)
 typealias ErrorHandler = ((Error) -> Void)
 typealias ProgressHandler = ((Progress) -> Void)
 
-class NetworkService {
-    static let shared = NetworkService()
+protocol NetworkServiceProtocol {
+    func request<T: Decodable>(
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: Parameters?,
+        encoder: ParameterEncoding,
+        headers: HTTPHeaders?,
+        progress: ProgressHandler?,
+        success: @escaping SuccessHandler<T>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest
+}
+
+class NetworkService: NetworkServiceProtocol {
     
     private let session: Session
+    private let config: NetworkConfigurable
+    private let logger: Logging.Type
+    private let errorHandler: ErrorHandling.Type
     
-    init(config: NetworkConfig = NetworkConfig.shared) {
+    init(config: NetworkConfigurable = NetworkConfig.shared,
+         logger: Logging.Type = Logger.Type,
+         errorHandler: ErrorHandling.Type = ErrorService.Type) {
+        self.config = config
+        self.logger = logger
+        self.errorHandler = errorHandler
+        
         // Конфигурация URLSession
         let configuration = URLSessionConfiguration.af.default
         configuration.timeoutIntervalForRequest = config.timeoutInterval
@@ -36,7 +57,7 @@ class NetworkService {
         let finalHeaders = createHeaders(additionalHeaders: headers)
         
         let request = session.request(
-            NetworkConfig.shared.baseURL.appendingPathComponent(endpoint),
+            config.baseURL.appendingPathComponent(endpoint),
             method: method,
             parameters: parameters,
             encoding: encoder,
@@ -44,21 +65,26 @@ class NetworkService {
         )
             .validate()
         
-        return request.responseData { response in
-            DispatchQueue.main.async {
-                Logger.log(request: request, dataResponse: response)
-                
-                switch response.result {
-                case .success(let data):
-                    do {
-                        let decoded = try JSONDecoder().decode(T.self, from: data)
-                        Logger.logDecoded(decoded)
+        let queue = DispatchQueue(label: "background.queue", qos: .background)
+        return request.responseData(queue: queue) { response in
+            self.logger.log(request: request, dataResponse: response)
+            
+            switch response.result {
+            case .success(let data):
+                do {
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    self.logger.logDecoded(decoded)
+                    DispatchQueue.main.async {
                         success(decoded)
-                    } catch {
+                    }
+                } catch {
+                    DispatchQueue.main.async {
                         failure(error)
                     }
-                case .failure(let error):
-                    failure(ErrorService.handle(error: error))
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    failure(self.errorHandler.handle(error: error))
                 }
             }
         }
@@ -67,7 +93,7 @@ class NetworkService {
     
     // MARK: Слияние предопределённых заголовков с входящими
     private func createHeaders(additionalHeaders: HTTPHeaders?) -> HTTPHeaders? {
-        var finalHeaders = NetworkConfig.shared.defaultHeaders
+        var finalHeaders = config.defaultHeaders
         if let additionalHeaders = additionalHeaders {
             for header in additionalHeaders {
                 finalHeaders.add(header)

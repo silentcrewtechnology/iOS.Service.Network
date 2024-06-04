@@ -1,7 +1,19 @@
 import Foundation
 import Alamofire
 
-class NetworkConfig {
+protocol NetworkConfigurable {
+    var baseURL: URL { get }
+    var timeoutInterval: TimeInterval { get }
+    var errorMessages: [Int: String] { get }
+    var unknownError: String { get }
+    var defaultHeaders: HTTPHeaders { get set }
+
+    func createTrustManager() -> ServerTrustManager
+    func addDefaultHeader(field: String, value: String)
+    func removeDefaultHeader(field: String)
+}
+
+class NetworkConfig: NetworkConfigurable {
     static let shared = NetworkConfig()
     
     // MARK: Базовый URL

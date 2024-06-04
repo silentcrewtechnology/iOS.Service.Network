@@ -1,7 +1,11 @@
 import Alamofire
 import Foundation
 
-class ErrorService {
+protocol ErrorHandling {
+    static func handle(error: AFError) -> Error
+}
+
+class ErrorService: ErrorHandling {
     static func handle(error: AFError) -> Error {
         if let responseCode = error.responseCode,
            let errorMessage = NetworkConfig.shared.errorMessages[responseCode] {
