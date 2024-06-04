@@ -22,12 +22,12 @@ class NetworkService: NetworkServiceProtocol {
     
     private let session: Session
     private let config: NetworkConfigurable
-    private let logger: Logging.Type
+    private let logger: LoggerProtocol.Type
     private let errorHandler: ErrorHandling.Type
     
     init(config: NetworkConfigurable = NetworkConfig.shared,
-         logger: Logging.Type = Logger.Type,
-         errorHandler: ErrorHandling.Type = ErrorService.Type) {
+         logger: LoggerProtocol.Type = Logger.self,
+         errorHandler: ErrorHandling.Type = ErrorService.self) {
         self.config = config
         self.logger = logger
         self.errorHandler = errorHandler
