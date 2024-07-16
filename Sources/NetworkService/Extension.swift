@@ -1,5 +1,5 @@
 //
-//  JSONDecoderService.swift
+//  Extension.swift
 //
 //
 //  Created by firdavs on 16.07.2024.
@@ -7,32 +7,7 @@
 
 import Foundation
 
-public struct JSONDecoderService {
-    private let decoder = JSONDecoder()
-    public var keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy
-    
-    public init(
-        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy
-    ){
-        self.keyDecodingStrategy = keyDecodingStrategy
-    }
-    
-    public func decode<T: Decodable>(jsonType: T.Type, data: Data?) -> T? {
-        guard let data = data else { return nil }
-        do {
-            self.decoder.keyDecodingStrategy = keyDecodingStrategy
-            let json = try self.decoder.decode(T.self, from: data)
-            return json
-            //return error
-        } catch let error {
-            let jsonString = String(data: data, encoding: .utf8) ?? " Error JsonString"
-            print(error.localizedDescription, "Error parse JSONDecode \(jsonString) string convert")
-            return nil
-        }
-    }
-}
-
-extension JSONDecoder.KeyDecodingStrategy {
+public extension JSONDecoder.KeyDecodingStrategy {
     
     private struct AnyKey: CodingKey {
         var stringValue: String
@@ -72,4 +47,3 @@ extension JSONDecoder.KeyDecodingStrategy {
         }
     }
 }
-
