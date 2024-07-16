@@ -11,6 +11,7 @@ public protocol NetworkServiceProtocol {
         method: HTTPMethod,
         parameters: Parameters?,
         encoder: ParameterEncoding,
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
         headers: HTTPHeaders?,
         progress: ProgressHandler?,
         success: @escaping SuccessHandler<T>,
@@ -24,6 +25,7 @@ public class NetworkService: NetworkServiceProtocol {
     private let config: NetworkConfigurable
     private let logger: LoggerProtocol.Type
     private let errorHandler: ErrorHandling.Type
+    private var decoderService = JSONDecoderService(keyDecodingStrategy: .useDefaultKeys)
     
     public init(
         config: NetworkConfigurable = NetworkConfig.shared,
@@ -52,6 +54,7 @@ public class NetworkService: NetworkServiceProtocol {
         method: HTTPMethod = .get,
         parameters: Parameters? = nil,
         encoder: ParameterEncoding = URLEncoding.default,
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
         headers: HTTPHeaders? = nil,
         progress: ProgressHandler? = nil,
         success: @escaping SuccessHandler<T>,
@@ -75,6 +78,7 @@ public class NetworkService: NetworkServiceProtocol {
             switch response.result {
             case .success(let data):
                 do {
+                    self.decoderService.keyDecodingStrategy = keyDecodingStrategy
                     let decoded = try JSONDecoder().decode(T.self, from: data)
                     self.logger.logDecoded(decoded)
                     DispatchQueue.main.async {
