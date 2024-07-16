@@ -11,7 +11,18 @@ public protocol NetworkServiceProtocol {
         method: HTTPMethod,
         parameters: Parameters?,
         encoder: ParameterEncoding,
+        headers: HTTPHeaders?,
+        progress: ProgressHandler?,
+        success: @escaping SuccessHandler<T>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest
+    
+    func request<T: Decodable>(
         keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: Parameters?,
+        encoder: ParameterEncoding,
         headers: HTTPHeaders?,
         progress: ProgressHandler?,
         success: @escaping SuccessHandler<T>,
@@ -49,11 +60,11 @@ public class NetworkService: NetworkServiceProtocol {
     
     @discardableResult
     public func request<T: Decodable>(
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
         endpoint: String,
         method: HTTPMethod = .get,
         parameters: Parameters? = nil,
         encoder: ParameterEncoding = URLEncoding.default,
-        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
         headers: HTTPHeaders? = nil,
         progress: ProgressHandler? = nil,
         success: @escaping SuccessHandler<T>,
@@ -67,8 +78,7 @@ public class NetworkService: NetworkServiceProtocol {
             parameters: parameters,
             encoding: encoder,
             headers: finalHeaders
-        )
-            .validate()
+        ).validate()
         
         let queue = DispatchQueue(label: "background.queue", qos: .background)
         return request.responseData(queue: queue) { response in
@@ -97,6 +107,52 @@ public class NetworkService: NetworkServiceProtocol {
         }
     }
     
+    
+    @discardableResult
+    public func request<T: Decodable>(
+        endpoint: String,
+        method: HTTPMethod = .get,
+        parameters: Parameters? = nil,
+        encoder: ParameterEncoding = URLEncoding.default,
+        headers: HTTPHeaders? = nil,
+        progress: ProgressHandler? = nil,
+        success: @escaping SuccessHandler<T>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest {
+        let finalHeaders = createHeaders(additionalHeaders: headers)
+        
+        let request = session.request(
+            config.baseURL.appendingPathComponent(endpoint),
+            method: method,
+            parameters: parameters,
+            encoding: encoder,
+            headers: finalHeaders
+        ).validate()
+        
+        let queue = DispatchQueue(label: "background.queue", qos: .background)
+        return request.responseData(queue: queue) { response in
+            self.logger.log(request: request, dataResponse: response)
+            
+            switch response.result {
+            case .success(let data):
+                do {
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    self.logger.logDecoded(decoded)
+                    DispatchQueue.main.async {
+                        success(decoded)
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        failure(error)
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    failure(self.errorHandler.handle(error: error))
+                }
+            }
+        }
+    }
     
     // MARK: Слияние предопределённых заголовков с входящими
     private func createHeaders(additionalHeaders: HTTPHeaders?) -> HTTPHeaders? {
