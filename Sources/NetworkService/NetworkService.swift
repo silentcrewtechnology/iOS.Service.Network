@@ -100,6 +100,7 @@ public class NetworkService: NetworkServiceProtocol {
                     }
                 }
             case .failure(let error):
+                if error.isExplicitlyCancelledError { return }
                 DispatchQueue.main.async {
                     failure(self.errorHandler.handle(error: error))
                 }
@@ -147,6 +148,7 @@ public class NetworkService: NetworkServiceProtocol {
                     }
                 }
             case .failure(let error):
+                if error.isExplicitlyCancelledError { return }
                 DispatchQueue.main.async {
                     failure(self.errorHandler.handle(error: error))
                 }
