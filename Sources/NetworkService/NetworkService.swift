@@ -156,6 +156,43 @@ public class NetworkService: NetworkServiceProtocol {
         }
     }
     
+    @discardableResult
+    public func requestData(
+        endpoint: String,
+        method: HTTPMethod = .get,
+        parameters: Parameters? = nil,
+        encoder: ParameterEncoding = URLEncoding.default,
+        headers: HTTPHeaders? = nil,
+        progress: ProgressHandler? = nil,
+        success: @escaping SuccessHandler<Data>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest {
+        let finalHeaders = createHeaders(additionalHeaders: headers)
+        let request = session.request(
+            config.baseURL.appendingPathComponent(endpoint),
+            method: method,
+            parameters: parameters,
+            encoding: encoder,
+            headers: finalHeaders
+        ).validate()
+        
+        let queue = DispatchQueue(label: "background.queue", qos: .background)
+        return request.responseData(queue: queue) { response in
+            self.logger.log(request: request, dataResponse: response)
+            switch response.result {
+            case .success(let data):
+                DispatchQueue.main.async {
+                    success(data)
+                }
+            case .failure(let error):
+                if error.isExplicitlyCancelledError { return }
+                DispatchQueue.main.async {
+                    failure(self.errorHandler.handle(error: error))
+                }
+            }
+        }
+    }
+    
     // MARK: Слияние предопределённых заголовков с входящими
     private func createHeaders(additionalHeaders: HTTPHeaders?) -> HTTPHeaders? {
         var finalHeaders = config.defaultHeaders
