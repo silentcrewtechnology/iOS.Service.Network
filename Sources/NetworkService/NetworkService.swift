@@ -18,6 +18,18 @@ public protocol NetworkServiceProtocol {
         success: @escaping SuccessHandler<T>,
         failure: @escaping ErrorHandler
     ) -> DataRequest
+    
+    func request<T: Decodable>(
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: Parameters?,
+        encoder: ParameterEncoding,
+        headers: HTTPHeaders?,
+        progress: ProgressHandler?,
+        success: @escaping SuccessHandler<ResultResponse<T>>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest
 }
 
 public class NetworkService: NetworkServiceProtocol {
@@ -88,6 +100,51 @@ public class NetworkService: NetworkServiceProtocol {
         )
     }
     
+    /// Вызывается при определении аргумента `success` как `ResultResponse<T>`.
+    /// При наличии ошибки в `ResultResponse` вызывается `failure`.
+    @discardableResult
+    public func request<T: Decodable>(
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
+        endpoint: String,
+        method: HTTPMethod = .get,
+        parameters: Parameters? = nil,
+        encoder: ParameterEncoding = URLEncoding.default,
+        headers: HTTPHeaders? = nil,
+        progress: ProgressHandler? = nil,
+        success: @escaping SuccessHandler<ResultResponse<T>>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest {
+        return requestData(
+            endpoint: endpoint,
+            method: method,
+            parameters: parameters,
+            encoder: encoder,
+            headers: headers,
+            progress: progress,
+            success: { [weak self] data in
+                guard let self else { return }
+                do {
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = keyDecodingStrategy
+                    let result = try decoder.decode(ResultResponse<T>.self, from: data)
+                    self.logger.logDecoded(result)
+                    guard result.success else {
+                        let error = makeAFError(from: result)
+                        throw errorHandler.handle(error: error)
+                    }
+                    DispatchQueue.main.async {
+                        success(result)
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        failure(error)
+                    }
+                }
+            },
+            failure: failure
+        )
+    }
+    
     /// Получаем Data, если не было ошибок в HTTP ответе.
     @discardableResult
     public func requestData(
@@ -127,7 +184,18 @@ public class NetworkService: NetworkServiceProtocol {
         }
     }
     
-    // MARK: Слияние предопределённых заголовков с входящими
+    /// `AFError` из `ResultResponse`.
+    private func makeAFError<T: Decodable>(from result: ResultResponse<T>) -> AFError {
+        AFError.responseValidationFailed(
+            reason: .customValidationFailed(error: NSError(
+                domain: "NetworkService",
+                code: result.errorCode ?? -1,
+                userInfo: [NSLocalizedDescriptionKey: result.error ?? config.unknownError]
+            ))
+        )
+    }
+    
+    /// Слияние предопределённых заголовков с входящими.
     private func createHeaders(additionalHeaders: HTTPHeaders?) -> HTTPHeaders? {
         var finalHeaders = config.defaultHeaders
         if let additionalHeaders = additionalHeaders {
