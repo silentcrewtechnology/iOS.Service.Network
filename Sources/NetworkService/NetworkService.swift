@@ -48,6 +48,7 @@ public class NetworkService: NetworkServiceProtocol {
         self.session = session ?? Session(configuration: configuration, serverTrustManager: serverTrustManager)
     }
     
+    /// Пробуем декодировать полученную `Data`, иначе вызов `failure`.
     @discardableResult
     public func request<T: Decodable>(
         keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
@@ -60,27 +61,20 @@ public class NetworkService: NetworkServiceProtocol {
         success: @escaping SuccessHandler<T>,
         failure: @escaping ErrorHandler
     ) -> DataRequest {
-        let finalHeaders = createHeaders(additionalHeaders: headers)
-        
-        let request = session.request(
-            config.baseURL.appendingPathComponent(endpoint),
+        return requestData(
+            endpoint: endpoint,
             method: method,
             parameters: parameters,
-            encoding: encoder,
-            headers: finalHeaders
-        ).validate()
-        
-        let queue = DispatchQueue(label: "background.queue", qos: .background)
-        return request.responseData(queue: queue) { response in
-            self.logger.log(request: request, dataResponse: response)
-            
-            switch response.result {
-            case .success(let data):
+            encoder: encoder,
+            headers: headers,
+            progress: progress,
+            success: { [weak self] data in
+                guard let self else { return }
                 do {
                     let decoderService = JSONDecoder()
                     decoderService.keyDecodingStrategy = keyDecodingStrategy
                     let decoded = try decoderService.decode(T.self, from: data)
-                    self.logger.logDecoded(decoded)
+                    logger.logDecoded(decoded)
                     DispatchQueue.main.async {
                         success(decoded)
                     }
@@ -89,15 +83,12 @@ public class NetworkService: NetworkServiceProtocol {
                         failure(error)
                     }
                 }
-            case .failure(let error):
-                if error.isExplicitlyCancelledError { return }
-                DispatchQueue.main.async {
-                    failure(self.errorHandler.handle(error: error))
-                }
-            }
-        }
+            },
+            failure: failure
+        )
     }
     
+    /// Получаем Data, если не было ошибок в HTTP ответе.
     @discardableResult
     public func requestData(
         endpoint: String,
@@ -119,8 +110,9 @@ public class NetworkService: NetworkServiceProtocol {
         ).validate()
         
         let queue = DispatchQueue(label: "background.queue", qos: .background)
-        return request.responseData(queue: queue) { response in
-            self.logger.log(request: request, dataResponse: response)
+        return request.responseData(queue: queue) { [weak self] response in
+            guard let self else { return }
+            logger.log(request: request, dataResponse: response)
             switch response.result {
             case .success(let data):
                 DispatchQueue.main.async {
