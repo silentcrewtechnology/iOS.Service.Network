@@ -6,16 +6,6 @@ public typealias ErrorHandler = ((Error) -> Void)
 public typealias ProgressHandler = ((Progress) -> Void)
 
 public protocol NetworkServiceProtocol {
-    func request<T: Decodable>(
-        endpoint: String,
-        method: HTTPMethod,
-        parameters: Parameters?,
-        encoder: ParameterEncoding,
-        headers: HTTPHeaders?,
-        progress: ProgressHandler?,
-        success: @escaping SuccessHandler<T>,
-        failure: @escaping ErrorHandler
-    ) -> DataRequest
     
     func request<T: Decodable>(
         keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
@@ -90,54 +80,6 @@ public class NetworkService: NetworkServiceProtocol {
                     let decoderService = JSONDecoder()
                     decoderService.keyDecodingStrategy = keyDecodingStrategy
                     let decoded = try decoderService.decode(T.self, from: data)
-                    self.logger.logDecoded(decoded)
-                    DispatchQueue.main.async {
-                        success(decoded)
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        failure(error)
-                    }
-                }
-            case .failure(let error):
-                if error.isExplicitlyCancelledError { return }
-                DispatchQueue.main.async {
-                    failure(self.errorHandler.handle(error: error))
-                }
-            }
-        }
-    }
-    
-    
-    @discardableResult
-    public func request<T: Decodable>(
-        endpoint: String,
-        method: HTTPMethod = .get,
-        parameters: Parameters? = nil,
-        encoder: ParameterEncoding = URLEncoding.default,
-        headers: HTTPHeaders? = nil,
-        progress: ProgressHandler? = nil,
-        success: @escaping SuccessHandler<T>,
-        failure: @escaping ErrorHandler
-    ) -> DataRequest {
-        let finalHeaders = createHeaders(additionalHeaders: headers)
-        
-        let request = session.request(
-            config.baseURL.appendingPathComponent(endpoint),
-            method: method,
-            parameters: parameters,
-            encoding: encoder,
-            headers: finalHeaders
-        ).validate()
-        
-        let queue = DispatchQueue(label: "background.queue", qos: .background)
-        return request.responseData(queue: queue) { response in
-            self.logger.log(request: request, dataResponse: response)
-            
-            switch response.result {
-            case .success(let data):
-                do {
-                    let decoded = try JSONDecoder().decode(T.self, from: data)
                     self.logger.logDecoded(decoded)
                     DispatchQueue.main.async {
                         success(decoded)
