@@ -20,7 +20,7 @@ public class NetworkConfig: NetworkConfigurable {
     public var baseURL: URL {
 #if DEBUG
         return URL(string: "https://dev.example.com")!
-#elseif RELEASE
+#else
         return URL(string: "https://prod.example.com")!
 #endif
     }
