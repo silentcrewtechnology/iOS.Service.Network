@@ -27,11 +27,7 @@ public class NetworkConfig: NetworkConfigurable {
     
     // MARK: Управление доверием
     public func createTrustManager() -> ServerTrustManager {
-#if RELEASE
-        return ServerTrustManager(evaluators: ["bankok.akbars.ru": PublicKeysTrustEvaluator()])
-#else
-        return ServerTrustManager(evaluators: ["217.198.15.118": DisabledTrustEvaluator()])
-#endif
+        return ServerTrustManager(evaluators: [:])
     }
     
     // MARK: Сколько секунд ждем ответа
