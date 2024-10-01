@@ -27,9 +27,9 @@ public final class UrlAndBodyParametersInterceptor: RequestInterceptor {
         for session: Session,
         completion: @escaping (Result<URLRequest, any Error>) -> Void
     ) {
-        if let postData = (try? JSONSerialization.data(withJSONObject: bodyParameters ?? [], options: [])) {
+        if let body = (try? JSONSerialization.data(withJSONObject: bodyParameters ?? [], options: [])) {
             var newRequest = urlRequest
-            newRequest.httpBody = postData
+            newRequest.httpBody = body
             completion(.success(newRequest))
         } else {
             completion(.success(urlRequest))
