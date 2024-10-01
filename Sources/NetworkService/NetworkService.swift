@@ -30,6 +30,19 @@ public protocol NetworkServiceProtocol {
         success: @escaping SuccessHandler<ResultResponse<T>>,
         failure: @escaping ErrorHandler
     ) -> DataRequest
+    
+    func request<T: Decodable>(
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
+        endpoint: String,
+        method: HTTPMethod,
+        urlParameters: Parameters?,
+        bodyParameters: Parameters?,
+        urlEncoder: ParameterEncoding,
+        headers: HTTPHeaders?,
+        progress: ProgressHandler?,
+        success: @escaping SuccessHandler<ResultResponse<T>>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest
 }
 
 public class NetworkService: NetworkServiceProtocol {
@@ -122,24 +135,48 @@ public class NetworkService: NetworkServiceProtocol {
             headers: headers,
             progress: progress,
             success: { [weak self] data in
-                guard let self else { return }
-                do {
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = keyDecodingStrategy
-                    let result = try decoder.decode(ResultResponse<T>.self, from: data)
-                    self.logger.logDecoded(result)
-                    guard result.success else {
-                        let error = makeAFError(from: result)
-                        throw errorHandler.handle(error: error)
-                    }
-                    DispatchQueue.main.async {
-                        success(result)
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        failure(error)
-                    }
-                }
+                self?.makeResultResponse(
+                    from: data,
+                    with: keyDecodingStrategy,
+                    success: success,
+                    failure: failure
+                )
+            },
+            failure: failure
+        )
+    }
+    
+    /// Вызывается при необходимости передачи parameters
+    /// как в body, так и в query
+    @discardableResult
+    public func request<T: Decodable>(
+        keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy = .useDefaultKeys,
+        endpoint: String,
+        method: HTTPMethod = .get,
+        urlParameters: Parameters? = nil,
+        bodyParameters: Parameters? = nil,
+        urlEncoder: ParameterEncoding = URLEncoding.queryString,
+        headers: HTTPHeaders? = nil,
+        progress: ProgressHandler? = nil,
+        success: @escaping SuccessHandler<ResultResponse<T>>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest {
+        let interceptor = UrlAndBodyParametersInterceptor(bodyParameters: bodyParameters)
+        return requestData(
+            endpoint: endpoint,
+            method: method,
+            parameters: urlParameters,
+            encoder: urlEncoder,
+            headers: headers,
+            progress: progress,
+            interceptor: interceptor,
+            success: { [weak self] data in
+                self?.makeResultResponse(
+                    from: data,
+                    with: keyDecodingStrategy,
+                    success: success, 
+                    failure: failure
+                )
             },
             failure: failure
         )
@@ -154,6 +191,7 @@ public class NetworkService: NetworkServiceProtocol {
         encoder: ParameterEncoding = URLEncoding.default,
         headers: HTTPHeaders? = nil,
         progress: ProgressHandler? = nil,
+        interceptor: RequestInterceptor? = nil,
         success: @escaping SuccessHandler<Data>,
         failure: @escaping ErrorHandler
     ) -> DataRequest {
@@ -163,7 +201,8 @@ public class NetworkService: NetworkServiceProtocol {
             method: method,
             parameters: parameters,
             encoding: encoder,
-            headers: finalHeaders
+            headers: finalHeaders,
+            interceptor: interceptor
         ).validate()
         
         let queue = DispatchQueue(label: "background.queue", qos: .background)
@@ -204,5 +243,30 @@ public class NetworkService: NetworkServiceProtocol {
             }
         }
         return finalHeaders
+    }
+    
+    private func makeResultResponse<T: Decodable>(
+        from data: Data,
+        with keyDecodingStrategy: JSONDecoder.KeyDecodingStrategy,
+        success: @escaping SuccessHandler<ResultResponse<T>>,
+        failure: @escaping ErrorHandler
+    ) {
+        do {
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = keyDecodingStrategy
+            let result = try decoder.decode(ResultResponse<T>.self, from: data)
+            self.logger.logDecoded(result)
+            guard result.success else {
+                let error = makeAFError(from: result)
+                throw errorHandler.handle(error: error)
+            }
+            DispatchQueue.main.async {
+                success(result)
+            }
+        } catch {
+            DispatchQueue.main.async {
+                failure(error)
+            }
+        }
     }
 }
