@@ -22,7 +22,11 @@ public final class UrlAndBodyParametersInterceptor: RequestInterceptor {
     
     // MARK: - Methods
     
-    public func adapt(_ urlRequest: URLRequest, for session: Session, completion: @escaping (Result<URLRequest, any Error>) -> Void) {
+    public func adapt(
+        _ urlRequest: URLRequest,
+        for session: Session,
+        completion: @escaping (Result<URLRequest, any Error>) -> Void
+    ) {
         if let postData = (try? JSONSerialization.data(withJSONObject: bodyParameters ?? [], options: [])) {
             var newRequest = urlRequest
             newRequest.httpBody = postData
