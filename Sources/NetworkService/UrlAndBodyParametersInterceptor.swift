@@ -16,7 +16,7 @@ public final class UrlAndBodyParametersInterceptor: RequestInterceptor {
     
     // MARK: - Life cycle
     
-    init(bodyParameters: Parameters?) {
+    public init(bodyParameters: Parameters?) {
         self.bodyParameters = bodyParameters
     }
     
