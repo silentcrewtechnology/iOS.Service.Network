@@ -37,7 +37,7 @@ public protocol NetworkServiceProtocol {
         method: HTTPMethod,
         urlParameters: Parameters?,
         bodyParameters: Parameters?,
-        urlEncoder: ParameterEncoding,
+        urlEncoding: URLEncoding,
         headers: HTTPHeaders?,
         progress: ProgressHandler?,
         success: @escaping SuccessHandler<ResultResponse<T>>,
@@ -155,7 +155,7 @@ public class NetworkService: NetworkServiceProtocol {
         method: HTTPMethod = .get,
         urlParameters: Parameters? = nil,
         bodyParameters: Parameters? = nil,
-        urlEncoder: ParameterEncoding = URLEncoding.queryString,
+        urlEncoding: URLEncoding = .queryString,
         headers: HTTPHeaders? = nil,
         progress: ProgressHandler? = nil,
         success: @escaping SuccessHandler<ResultResponse<T>>,
@@ -165,11 +165,11 @@ public class NetworkService: NetworkServiceProtocol {
         return requestData(
             endpoint: endpoint,
             method: method,
-            parameters: urlParameters,
-            encoder: urlEncoder,
+            urlParameters: urlParameters,
+            bodyParameters: bodyParameters,
+            urlEncoding: urlEncoding,
             headers: headers,
             progress: progress,
-            interceptor: interceptor,
             success: { [weak self] data in
                 self?.makeResultResponse(
                     from: data,
@@ -191,7 +191,6 @@ public class NetworkService: NetworkServiceProtocol {
         encoder: ParameterEncoding = URLEncoding.default,
         headers: HTTPHeaders? = nil,
         progress: ProgressHandler? = nil,
-        interceptor: RequestInterceptor? = nil,
         success: @escaping SuccessHandler<Data>,
         failure: @escaping ErrorHandler
     ) -> DataRequest {
@@ -201,25 +200,53 @@ public class NetworkService: NetworkServiceProtocol {
             method: method,
             parameters: parameters,
             encoding: encoder,
+            headers: finalHeaders
+        ).validate()
+        
+        let queue = DispatchQueue(label: "background.queue", qos: .background)
+        return request.responseData(queue: queue) { [weak self] response in
+            self?.logger.log(request: request, dataResponse: response)
+            self?.makeDataResponse(
+                from: response,
+                success: success,
+                failure: failure
+            )
+        }
+    }
+    
+    /// Получаем Data, если не было ошибок в HTTP ответе,
+    /// используя Interceptor
+    @discardableResult
+    public func requestData(
+        endpoint: String,
+        method: HTTPMethod = .get,
+        urlParameters: Parameters? = nil,
+        bodyParameters: Parameters? = nil,
+        urlEncoding: URLEncoding = .queryString,
+        headers: HTTPHeaders? = nil,
+        progress: ProgressHandler? = nil,
+        success: @escaping SuccessHandler<Data>,
+        failure: @escaping ErrorHandler
+    ) -> DataRequest {
+        let finalHeaders = createHeaders(additionalHeaders: headers)
+        let interceptor = UrlAndBodyParametersInterceptor(bodyParameters: bodyParameters)
+        let request = session.request(
+            config.baseURL.appendingPathComponent(endpoint),
+            method: method,
+            parameters: urlParameters,
+            encoding: urlEncoding,
             headers: finalHeaders,
             interceptor: interceptor
         ).validate()
         
         let queue = DispatchQueue(label: "background.queue", qos: .background)
         return request.responseData(queue: queue) { [weak self] response in
-            guard let self else { return }
-            logger.log(request: request, dataResponse: response)
-            switch response.result {
-            case .success(let data):
-                DispatchQueue.main.async {
-                    success(data)
-                }
-            case .failure(let error):
-                if error.isExplicitlyCancelledError { return }
-                DispatchQueue.main.async {
-                    failure(self.errorHandler.handle(error: error))
-                }
-            }
+            self?.logger.log(request: request, dataResponse: response)
+            self?.makeDataResponse(
+                from: response,
+                success: success,
+                failure: failure
+            )
         }
     }
     
@@ -266,6 +293,24 @@ public class NetworkService: NetworkServiceProtocol {
         } catch {
             DispatchQueue.main.async {
                 failure(error)
+            }
+        }
+    }
+    
+    private func makeDataResponse(
+        from response: AFDataResponse<Data>,
+        success: @escaping SuccessHandler<Data>,
+        failure: @escaping ErrorHandler
+    ) {
+        switch response.result {
+        case .success(let data):
+            DispatchQueue.main.async {
+                success(data)
+            }
+        case .failure(let error):
+            if error.isExplicitlyCancelledError { return }
+            DispatchQueue.main.async {
+                failure(self.errorHandler.handle(error: error))
             }
         }
     }

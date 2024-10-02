@@ -27,12 +27,11 @@ public final class UrlAndBodyParametersInterceptor: RequestInterceptor {
         for session: Session,
         completion: @escaping (Result<URLRequest, any Error>) -> Void
     ) {
-        if let body = (try? JSONSerialization.data(withJSONObject: bodyParameters ?? [], options: [])) {
-            var newRequest = urlRequest
-            newRequest.httpBody = body
+        do {
+            let newRequest = try JSONEncoding.default.encode(urlRequest, with: bodyParameters)
             completion(.success(newRequest))
-        } else {
-            completion(.success(urlRequest))
+        } catch {
+            completion(.failure(NSError()))
         }
     }
 }
