@@ -51,16 +51,20 @@ public class NetworkService: NetworkServiceProtocol {
     private let config: NetworkConfigurable
     private let logger: LoggerProtocol.Type
     private let errorHandler: ErrorHandling.Type
+    /// Создание ``BodyParametersInterceptor`` на каждый `POST`-запрос
+    private let bodyParametersInterceptor: () -> BodyParametersInterceptor
     
     public init(
         config: NetworkConfigurable = NetworkConfig.shared,
         logger: LoggerProtocol.Type = Logger.self,
         errorHandler: ErrorHandling.Type = ErrorService.self,
-        session: Session? = nil
+        session: Session? = nil,
+        bodyParametersInterceptor: @escaping () -> BodyParametersInterceptor = { .init() }
     ) {
         self.config = config
         self.logger = logger
         self.errorHandler = errorHandler
+        self.bodyParametersInterceptor = bodyParametersInterceptor
         
         // Конфигурация URLSession
         let configuration = URLSessionConfiguration.af.default
@@ -161,7 +165,6 @@ public class NetworkService: NetworkServiceProtocol {
         success: @escaping SuccessHandler<ResultResponse<T>>,
         failure: @escaping ErrorHandler
     ) -> DataRequest {
-        let interceptor = UrlAndBodyParametersInterceptor(bodyParameters: bodyParameters)
         return requestData(
             endpoint: endpoint,
             method: method,
@@ -195,12 +198,19 @@ public class NetworkService: NetworkServiceProtocol {
         failure: @escaping ErrorHandler
     ) -> DataRequest {
         let finalHeaders = createHeaders(additionalHeaders: headers)
+        let interceptor: BodyParametersInterceptor? = {
+            guard method == .post && encoder is JSONEncoding else { return nil }
+            let interceptor = bodyParametersInterceptor()
+            interceptor.parameters = parameters
+            return interceptor
+        }()
         let request = session.request(
             config.baseURL.appendingPathComponent(endpoint),
             method: method,
             parameters: parameters,
             encoding: encoder,
-            headers: finalHeaders
+            headers: finalHeaders,
+            interceptor: interceptor
         ).validate()
         
         let queue = DispatchQueue(label: "background.queue", qos: .background)
@@ -229,7 +239,12 @@ public class NetworkService: NetworkServiceProtocol {
         failure: @escaping ErrorHandler
     ) -> DataRequest {
         let finalHeaders = createHeaders(additionalHeaders: headers)
-        let interceptor = UrlAndBodyParametersInterceptor(bodyParameters: bodyParameters)
+        let interceptor: BodyParametersInterceptor? = {
+            guard method == .post else { return nil }
+            let interceptor = bodyParametersInterceptor()
+            interceptor.parameters = bodyParameters
+            return interceptor
+        }()
         let request = session.request(
             config.baseURL.appendingPathComponent(endpoint),
             method: method,
