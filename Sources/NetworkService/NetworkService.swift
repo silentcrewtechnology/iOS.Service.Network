@@ -54,6 +54,33 @@ public class NetworkService: NetworkServiceProtocol {
     /// Создание ``BodyParametersInterceptor`` на каждый `POST`-запрос
     private let bodyParametersInterceptor: () -> BodyParametersInterceptor
     
+    public convenience init(
+        config: NetworkConfigurable = NetworkConfig.shared,
+        logger: LoggerProtocol.Type = Logger.self,
+        errorHandler: ErrorHandling.Type = ErrorService.self,
+        sessionDelegate: SessionDelegate
+    ) {
+        // Конфигурация URLSession
+        let configuration = URLSessionConfiguration.af.default
+        configuration.timeoutIntervalForRequest = config.timeoutInterval
+        // Управление доверием сервера
+        let serverTrustManager = config.createTrustManager()
+        
+        // Инициализация сессии с управлением доверием
+        let session = Session(
+            configuration: configuration,
+            delegate: sessionDelegate,
+            serverTrustManager: serverTrustManager
+        )
+        
+        self.init(
+            config: config,
+            logger: logger,
+            errorHandler: errorHandler,
+            session: session
+        )
+    }
+    
     public init(
         config: NetworkConfigurable = NetworkConfig.shared,
         logger: LoggerProtocol.Type = Logger.self,
