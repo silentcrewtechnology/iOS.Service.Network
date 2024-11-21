@@ -18,20 +18,16 @@ public class NetworkConfig: NetworkConfigurable {
     
     // MARK: Базовый URL
     public var baseURL: URL {
-        #if DEBUG
+#if DEBUG
         return URL(string: "https://dev.example.com")!
-        #elseif RELEASE
+#else
         return URL(string: "https://prod.example.com")!
-        #endif
+#endif
     }
     
     // MARK: Управление доверием
     public func createTrustManager() -> ServerTrustManager {
-        #if RELEASE
-        return ServerTrustManager(evaluators: ["bankok.akbars.ru": PublicKeysTrustEvaluator()])
-        #else
-        return ServerTrustManager(evaluators: ["217.198.15.118": DisabledTrustEvaluator()])
-        #endif
+        return ServerTrustManager(evaluators: [:])
     }
     
     // MARK: Сколько секунд ждем ответа
@@ -66,4 +62,6 @@ public class NetworkConfig: NetworkConfigurable {
     public func removeDefaultHeader(field: String) {
         defaultHeaders.remove(name: field)
     }
+
+    private init() {}
 }
