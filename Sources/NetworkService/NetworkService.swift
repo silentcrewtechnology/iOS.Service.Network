@@ -58,7 +58,8 @@ public class NetworkService: NetworkServiceProtocol {
         config: NetworkConfigurable = NetworkConfig.shared,
         logger: LoggerProtocol.Type = Logger.self,
         errorHandler: ErrorHandling.Type = ErrorService.self,
-        sessionDelegate: SessionDelegate
+        sessionDelegate: SessionDelegate,
+        bodyParametersInterceptor: @escaping () -> BodyParametersInterceptor = { .init() }
     ) {
         // Конфигурация URLSession
         let configuration = URLSessionConfiguration.af.default
@@ -77,7 +78,8 @@ public class NetworkService: NetworkServiceProtocol {
             config: config,
             logger: logger,
             errorHandler: errorHandler,
-            session: session
+            session: session,
+            bodyParametersInterceptor: bodyParametersInterceptor
         )
     }
     
